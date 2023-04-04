@@ -1,0 +1,178 @@
+# CSV file convert to elixir
+
+```elixir
+Mix.install(
+  [
+    {:file_upload_smart_cell, github: "akoutmos/file_upload_smart_cell"},
+    {:csv, "~> 3.0"}
+  ],
+  force: true
+)
+```
+
+## Instructions
+
+## Add File
+
+<!-- livebook:{"attrs":{"file_path":"/tmp/DE7742E8A506817B200DD6CE2A43AEEC","storage":"disk","variable":"data"},"chunks":null,"kind":"Elixir.FileUploadSmartCell","livebook_object":"smart_cell"} -->
+
+```elixir
+data =
+  with file_path when is_binary(file_path) <- "/tmp/DE7742E8A506817B200DD6CE2A43AEEC",
+       true <- File.exists?(file_path),
+       false <- File.dir?(file_path) do
+    if Map.fetch!(
+         %{
+           "file_path" => "/tmp/DE7742E8A506817B200DD6CE2A43AEEC",
+           "storage" => "disk",
+           "variable" => "data"
+         },
+         "storage"
+       ) == "disk" do
+      file_path
+    else
+      file_contents = File.read!(file_path)
+      File.rm!(file_path)
+      file_contents
+    end
+  else
+    _ -> :no_file_uploaded
+  end
+
+Kino.nothing()
+```
+
+<!-- livebook:{"attrs":{"file_path":"/tmp/6AB6820308C6592631E59E0147DBDC16","storage":"disk","variable":"data2"},"chunks":null,"kind":"Elixir.FileUploadSmartCell","livebook_object":"smart_cell"} -->
+
+```elixir
+data2 =
+  with file_path when is_binary(file_path) <- "/tmp/6AB6820308C6592631E59E0147DBDC16",
+       true <- File.exists?(file_path),
+       false <- File.dir?(file_path) do
+    if Map.fetch!(
+         %{
+           "file_path" => "/tmp/6AB6820308C6592631E59E0147DBDC16",
+           "storage" => "disk",
+           "variable" => "data2"
+         },
+         "storage"
+       ) == "disk" do
+      file_path
+    else
+      file_contents = File.read!(file_path)
+      File.rm!(file_path)
+      file_contents
+    end
+  else
+    _ -> :no_file_uploaded
+  end
+
+Kino.nothing()
+```
+
+## Convert into a list
+
+```elixir
+[_head | list_gif] =
+  data2 |> File.stream!([read_ahead: 100_000], 1000) |> CSV.decode!() |> Enum.to_list()
+```
+
+```elixir
+[_head | list_desc] =
+  data |> File.stream!([read_ahead: 100_000], 1000) |> CSV.decode!() |> Enum.to_list()
+```
+
+## Apply filter as your requirement
+
+```elixir
+defmodule Exercise do
+  @title 1
+  @desc 2
+  @_type 3
+  @bodypart 4
+  @equiment 5
+  @level 6
+
+  def map_of_list(list_desc, list_gif) do
+    zipfile = filter_same_name(list_desc, list_gif)
+    list_have_discription = filter_discriptions(list_desc)
+
+    Enum.map(list_have_discription, fn row ->
+      filter_name =
+        Enum.filter(zipfile, fn {name, gif} -> String.downcase(Enum.at(row, @title)) == name end)
+
+      gifUrl = Enum.map(filter_name, fn {_name, gif} -> gif end) |> List.to_string()
+      title = Enum.at(row, @title)
+      description = Enum.at(row, @desc)
+      type = Enum.at(row, @_type)
+      bodypart = Enum.at(row, @bodypart)
+      equiment = Enum.at(row, @equiment)
+      level = Enum.at(row, @level)
+
+      %{
+        name: title,
+        discription: description,
+        type: type,
+        level: level,
+        gifUrl: gifUrl,
+        bodypart: bodypart,
+        equiment: equiment
+      }
+    end)
+  end
+
+  def filter_discriptions(list_desc) do
+    Enum.filter(list_desc, fn row ->
+      Enum.at(row, @desc) != ""
+    end)
+  end
+
+  def filter_gif(list_desc, list_gif) do
+    map_list = map_of_list(list_desc, list_gif)
+    Enum.filter(map_list, fn el -> el.gifUrl != "" end)
+  end
+
+  def filter_same_name(list_desc, list_gif) do
+    list_title = Enum.map(list_desc, fn x -> String.downcase(Enum.at(x, 1)) end)
+    list_name = Enum.map(list_gif, fn x -> Enum.at(x, 4) end)
+    list_of_gif = Enum.map(list_gif, fn x -> Enum.at(x, 2) end)
+
+    ziplist = Enum.zip(list_name, list_of_gif)
+
+    Enum.filter(ziplist, fn {name, _gif} ->
+      name in list_title
+    end)
+  end
+end
+```
+
+```elixir
+after_filter = Exercise.filter_gif(list_desc, list_gif)
+# Enum.reduce(after_filter, 0, fn _row, acc -> acc + 1 end)
+```
+
+```elixir
+list_title = Enum.map(list_desc, fn x -> String.downcase(Enum.at(x, 1)) end)
+list_name = Enum.map(list_gif, fn x -> Enum.at(x, 4) end)
+list_of_gif = Enum.map(list_gif, fn x -> Enum.at(x, 2) end)
+
+ziplist = Enum.zip(list_name, list_of_gif)
+
+{filter_list, filter_gif} =
+  Enum.filter(ziplist, fn {name, _gif} ->
+    name in list_title
+  end)
+  |> Enum.unzip()
+
+#  Enum.reduce(after_filter, 0, fn _row, acc -> acc + 1 end)
+```
+
+```elixir
+Exercise.filter_same_name(list_desc, list_gif)
+```
+
+```elixir
+#  after_filter = Csv.map_of_list(list_desc, list_gif)
+
+# Enum.reduce(after_filter, 0, fn _row, acc -> acc + 1 end)
+```
